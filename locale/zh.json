@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "会话 Git 同步",
-    "description": "把 DSH 会话镜像到 Git 仓库，在多个设备之间共享：/sync、/sync pull、/sync push，并在设置页面中配置仓库地址。"
+    "description": "把 DSH 会话镜像到 Git 仓库，在多个设备之间共享：/sync、/sync pull、/sync push，并在设置页面中配置仓库地址与定时自动推送。"
   }
 }

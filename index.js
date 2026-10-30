@@ -12,6 +12,7 @@
 import os from 'node:os'
 import path from 'node:path'
 import { SessionGitSync, validateBranch } from './lib/sync.js'
+import { AutoPushScheduler } from './lib/auto.js'
 import { registerRemoteService } from './lib/remote.js'
 
 const SERVICE_KEY = 'dshSync'
@@ -37,8 +38,23 @@ function formatStatus(status) {
       ? `${status.mirror.sessions} 个会话 / ${status.mirror.files} 个文件`
       : '尚未初始化（首次 /sync push 时创建）'}`,
   ]
+  if (status.autoPush) {
+    if (!status.remote) {
+      lines.push(`自动同步: 已开启（每 ${status.autoPushIntervalMinutes} 分钟），但尚未配置远程仓库`)
+    } else {
+      const next = status.autoPushNextAt
+        ? `，下次 ${formatTime(new Date(status.autoPushNextAt).toISOString())}`
+        : ''
+      lines.push(`自动同步: 每 ${status.autoPushIntervalMinutes} 分钟推送一次${next}`)
+    }
+  } else {
+    lines.push('自动同步: 已关闭（在设置页开启）')
+  }
   if (status.state.lastPushAt) {
     lines.push(`上次推送: ${formatTime(status.state.lastPushAt)} ${status.state.lastPushOk === false ? '失败' : '成功'}`)
+  }
+  if (status.state.lastAutoPushAt) {
+    lines.push(`上次自动推送: ${formatTime(status.state.lastAutoPushAt)} ${status.state.lastAutoPushOk === false ? '失败' : '成功'}`)
   }
   if (status.state.lastPullAt) {
     lines.push(`上次拉取: ${formatTime(status.state.lastPullAt)} ${status.state.lastPullOk === false ? '失败' : '成功'}`)
@@ -63,6 +79,19 @@ export function apply(ctx) {
     logger: ctx.logger,
     flush: () => ctx.get('sessionPersistence')?.flush(),
   })
+  const scheduler = new AutoPushScheduler({ sync, logger: ctx.logger })
+
+  /** Status plus the live timer state the page and command both display. */
+  const readStatus = async () => ({
+    ...(await sync.status()),
+    autoPushNextAt: scheduler.nextAt,
+    autoPushRunning: scheduler.running,
+  })
+
+  ctx.effect(() => {
+    scheduler.start()
+    return () => scheduler.stop()
+  }, 'dsh-sync: auto push timer')
 
   ctx.effect(() => ctx.commands.register({
     name: 'sync',
@@ -72,7 +101,7 @@ export function apply(ctx) {
       const argument = String(invocation.rawInput ?? '').trim().toLowerCase()
       try {
         if (argument === '' || argument === 'status') {
-          return success(formatStatus(await sync.status()))
+          return success(formatStatus(await readStatus()))
         }
         if (argument === 'help') {
           return success([
@@ -115,7 +144,7 @@ export function apply(ctx) {
   const withStatus = async (result) => {
     let status
     try {
-      status = await sync.status()
+      status = await readStatus()
     } catch {
       status = undefined
     }
@@ -130,14 +159,15 @@ export function apply(ctx) {
       {
         method: 'status',
         implementation: function status() {
-          return sync.status()
+          return readStatus()
         },
       },
       {
         method: 'save',
-        implementation: async function save(remote, branch) {
+        implementation: async function save(remote, branch, autoPush, autoPushIntervalMinutes) {
           const normalizedBranch = validateBranch(branch)
-          const result = await sync.save(remote, normalizedBranch)
+          const result = await sync.save(remote, normalizedBranch, autoPush, autoPushIntervalMinutes)
+          await scheduler.refresh()
           return withStatus(result)
         },
       },

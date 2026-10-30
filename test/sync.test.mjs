@@ -124,7 +124,12 @@ test('save validates the git URL and branch', async (t) => {
 
   const saved = await sync.save('/tmp/repo', 'sync/main')
   assert.equal(saved.ok, true)
-  assert.deepEqual(saved.settings, { remote: '/tmp/repo', branch: 'sync/main' })
+  assert.deepEqual(saved.settings, {
+    remote: '/tmp/repo',
+    branch: 'sync/main',
+    autoPush: false,
+    autoPushIntervalMinutes: 10,
+  })
   assert.equal((await sync.status()).branch, 'sync/main')
   assert.equal(validateBranch(''), 'main')
   assert.throws(() => validateRemote(''), /URL/i)

@@ -2,9 +2,10 @@
  * Browser half of `dsh-sync`.
  *
  * Adds one page under Settings → 会话 Git 同步 (Settings → Session Git Sync).
- * The page writes the repository URL and branch, and triggers pull/push through
- * the host Remote service registered by `index.js`. All session bytes and git
- * work stay on the host; this module only renders state and calls endpoints.
+ * The page writes the repository URL, branch, and auto-sync schedule, and
+ * triggers pull/push through the host Remote service registered by `index.js`.
+ * All session bytes and git work stay on the host; this module only renders
+ * state and calls endpoints.
  */
 window.__ModuleLoader__.load({
   id: '@code_tin/dsh-sync',
@@ -17,18 +18,23 @@ window.__ModuleLoader__.load({
     const ZH = {
       nav: '会话 Git 同步',
       title: '会话 Git 同步',
-      subtitle: '把本机的 DSH 会话镜像到一个 Git 仓库，在多个设备之间共享。拉取只新增本地不存在的会话，不会覆盖本地已有会话。',
+      subtitle: '把本机的 DSH 会话镜像到一个 Git 仓库，在多个设备之间共享。拉取只新增本地不存在的会话，不会覆盖本地已有会话；也可以开启定时自动推送。',
       remoteLabel: 'Git 仓库地址',
       remotePlaceholder: 'https://example.com/user/dsh-sessions.git',
       branchLabel: '分支',
       branchPlaceholder: 'main',
+      autoLabel: '自动同步',
+      autoHint: '开启后每隔下面的时间自动把本地会话推送到 Git（等同 /sync push），DSH 宿主进程需要保持运行。',
+      intervalLabel: '自动同步间隔（分钟）',
+      intervalUnit: '分钟',
+      intervalInvalid: '自动同步间隔需要是 1 到 1440 之间的整数分钟。',
       save: '保存',
       test: '测试连接',
       pull: '从远程拉取',
       push: '推送到远程',
       refresh: '刷新状态',
       unsaved: '有未保存的修改；拉取或推送前会自动保存。',
-      saved: '已保存 Git 地址。',
+      saved: '已保存设置。',
       statusTitle: '同步状态',
       commandsTitle: '命令',
       cmdStatus: '查看同步状态',
@@ -39,8 +45,14 @@ window.__ModuleLoader__.load({
       branchStatus: '分支',
       localStatus: '本地会话 / 文件',
       mirrorStatus: '镜像仓库',
+      autoStatus: '自动同步',
+      autoOff: '已关闭',
+      autoOn: '每 {minutes} 分钟',
+      autoNext: '每 {minutes} 分钟，下次 {time}',
+      autoNoRemote: '已开启，尚未配置远程仓库',
       lastPush: '上次推送',
       lastPull: '上次拉取',
+      lastAutoPush: '上次自动推送',
       dataDir: '本地会话目录',
       repoDir: '镜像仓库目录',
       notConfigured: '未配置',
@@ -61,18 +73,23 @@ window.__ModuleLoader__.load({
     const EN = {
       nav: 'Session Git Sync',
       title: 'Session Git Sync',
-      subtitle: 'Mirror this device’s DSH sessions into a git repository and share them across devices. Pull only adds sessions missing locally; it never overwrites an existing local session.',
+      subtitle: 'Mirror this device’s DSH sessions into a git repository and share them across devices. Pull only adds sessions missing locally; it never overwrites an existing local session. Optionally push on a timer.',
       remoteLabel: 'Git repository URL',
       remotePlaceholder: 'https://example.com/user/dsh-sessions.git',
       branchLabel: 'Branch',
       branchPlaceholder: 'main',
+      autoLabel: 'Auto sync',
+      autoHint: 'When enabled, local sessions are pushed to git every interval (same as /sync push). The DSH host process must stay running.',
+      intervalLabel: 'Auto sync interval (minutes)',
+      intervalUnit: 'min',
+      intervalInvalid: 'The auto sync interval must be a whole number between 1 and 1440 minutes.',
       save: 'Save',
       test: 'Test connection',
       pull: 'Pull from remote',
       push: 'Push to remote',
       refresh: 'Refresh status',
       unsaved: 'Unsaved changes; pull or push saves them first.',
-      saved: 'Git URL saved.',
+      saved: 'Settings saved.',
       statusTitle: 'Sync status',
       commandsTitle: 'Commands',
       cmdStatus: 'show sync status',
@@ -83,8 +100,14 @@ window.__ModuleLoader__.load({
       branchStatus: 'Branch',
       localStatus: 'Local sessions / files',
       mirrorStatus: 'Mirror',
+      autoStatus: 'Auto sync',
+      autoOff: 'Off',
+      autoOn: 'Every {minutes} min',
+      autoNext: 'Every {minutes} min, next {time}',
+      autoNoRemote: 'On, but no remote repository is configured',
       lastPush: 'Last push',
       lastPull: 'Last pull',
+      lastAutoPush: 'Last auto push',
       dataDir: 'Local session directory',
       repoDir: 'Mirror directory',
       notConfigured: 'Not configured',
@@ -112,6 +135,12 @@ window.__ModuleLoader__.load({
 .dshsync-row { display: flex; gap: 10px; }
 .dshsync-grow { flex: 1 1 auto; min-width: 0; }
 .dshsync-branch { width: 170px; flex: 0 0 auto; }
+.dshsync-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dsw-alias-label-primary); cursor: pointer; }
+.dshsync-check input { width: 15px; height: 15px; margin: 0; accent-color: var(--dsw-alias-brand-primary); }
+.dshsync-field-hint { margin: 0; font-size: 12px; line-height: 1.5; color: var(--dsw-alias-label-secondary); }
+.dshsync-interval-row { display: flex; align-items: center; gap: 8px; }
+.dshsync-interval-input { width: 120px; }
+.dshsync-unit { font-size: 12px; color: var(--dsw-alias-label-secondary); }
 .dshsync-label { font-size: 12px; font-weight: 500; color: var(--dsw-alias-label-secondary); }
 .dshsync-input { box-sizing: border-box; width: 100%; height: 34px; padding: 0 10px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font-size: 13px; outline: none; }
 .dshsync-input::placeholder { color: var(--dsw-alias-state-idle-primary); }
@@ -184,7 +213,12 @@ window.__ModuleLoader__.load({
       }
       return {
         status: () => call('status'),
-        save: (remote, branch) => call('save', { remote, branch }),
+        save: (remote, branch, autoPush, autoPushIntervalMinutes) => call('save', {
+          remote,
+          branch,
+          autoPush,
+          autoPushIntervalMinutes,
+        }),
         test: (remote) => call('test', { remote }),
         pull: () => call('pull'),
         push: () => call('push'),
@@ -196,6 +230,8 @@ window.__ModuleLoader__.load({
       const [snapshot, setSnapshot] = React.useState(null)
       const [remote, setRemote] = React.useState('')
       const [branch, setBranch] = React.useState('main')
+      const [autoPush, setAutoPush] = React.useState(false)
+      const [intervalText, setIntervalText] = React.useState('10')
       const [dirty, setDirty] = React.useState(false)
       const [busy, setBusy] = React.useState('')
       const [notice, setNotice] = React.useState(null)
@@ -212,6 +248,8 @@ window.__ModuleLoader__.load({
             setSnapshot(value)
             setRemote(value.remote || '')
             setBranch(value.branch || 'main')
+            setAutoPush(value.autoPush === true)
+            setIntervalText(String(value.autoPushIntervalMinutes ?? 10))
           })
           .catch((error) => {
             if (alive) setNotice({ kind: 'error', text: `${t('loadFailed')}: ${errorText(error)}` })
@@ -241,19 +279,38 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const parseInterval = () => {
+        const value = Number(intervalText)
+        return Number.isInteger(value) && value >= 1 && value <= 1440 ? value : null
+      }
+
+      const applySettings = (settings) => {
+        if (!settings) return
+        if (typeof settings.remote === 'string') setRemote(settings.remote)
+        if (typeof settings.branch === 'string') setBranch(settings.branch)
+        if (typeof settings.autoPush === 'boolean') setAutoPush(settings.autoPush)
+        if (settings.autoPushIntervalMinutes !== undefined) {
+          setIntervalText(String(settings.autoPushIntervalMinutes))
+        }
+      }
+
       const saveFirst = async () => {
         if (!dirty) return true
+        const interval = parseInterval()
+        if (interval === null) {
+          setNotice({ kind: 'error', text: t('intervalInvalid') })
+          return false
+        }
         setBusy('save')
         try {
-          const saved = await rpc.save(remote.trim(), branch.trim())
+          const saved = await rpc.save(remote.trim(), branch.trim(), autoPush, interval)
           if (saved && saved.status) setSnapshot(saved.status)
           if (saved && saved.ok === false) {
             setNotice({ kind: 'error', text: saved.message || t('failed') })
             return false
           }
           setDirty(false)
-          setRemote(saved && saved.settings ? saved.settings.remote : remote.trim())
-          setBranch(saved && saved.settings ? saved.settings.branch : branch.trim())
+          applySettings(saved && saved.settings)
           return true
         } catch (error) {
           setNotice({ kind: 'error', text: errorText(error) })
@@ -264,13 +321,15 @@ window.__ModuleLoader__.load({
       }
 
       const onSave = async () => {
-        const result = await perform('save', () => rpc.save(remote.trim(), branch.trim()))
+        const interval = parseInterval()
+        if (interval === null) {
+          setNotice({ kind: 'error', text: t('intervalInvalid') })
+          return
+        }
+        const result = await perform('save', () => rpc.save(remote.trim(), branch.trim(), autoPush, interval))
         if (!result || result.ok === false) return
         setDirty(false)
-        if (result.settings) {
-          setRemote(result.settings.remote)
-          setBranch(result.settings.branch)
-        }
+        applySettings(result.settings)
         setNotice({ kind: 'ok', text: t('saved') })
       }
 
@@ -321,6 +380,8 @@ window.__ModuleLoader__.load({
           if (!dirty) {
             setRemote(value.remote || '')
             setBranch(value.branch || 'main')
+            setAutoPush(value.autoPush === true)
+            setIntervalText(String(value.autoPushIntervalMinutes ?? 10))
           }
           setNotice({ kind: 'info', text: t('refreshed') })
         } catch (error) {
@@ -334,6 +395,14 @@ window.__ModuleLoader__.load({
       const state = snapshot && snapshot.state ? snapshot.state : {}
       const local = snapshot && snapshot.local ? snapshot.local : { sessions: 0, files: 0 }
       const mirror = snapshot && snapshot.mirror ? snapshot.mirror : { initialized: false, sessions: 0, files: 0 }
+      const autoText = (() => {
+        if (!snapshot || snapshot.autoPush !== true) return t('autoOff')
+        if (!snapshot.remote) return t('autoNoRemote')
+        const minutes = snapshot.autoPushIntervalMinutes ?? 10
+        return snapshot.autoPushNextAt
+          ? format(t('autoNext'), { minutes, time: timeText(snapshot.autoPushNextAt) })
+          : format(t('autoOn'), { minutes })
+      })()
 
       const row = (key, label, value, mono) => [
         h('dt', { className: 'dshsync-k', key: `${key}-k` }, label),
@@ -385,6 +454,42 @@ window.__ModuleLoader__.load({
               }),
             ),
           ),
+          h('div', { className: 'dshsync-field' },
+            h('label', { className: 'dshsync-check', htmlFor: 'dshsync-auto' },
+              h('input', {
+                id: 'dshsync-auto',
+                type: 'checkbox',
+                checked: autoPush,
+                disabled: busy === 'save',
+                onChange: (event) => {
+                  setAutoPush(event.target.checked)
+                  setDirty(true)
+                },
+              }),
+              h('span', null, t('autoLabel')),
+            ),
+            h('p', { className: 'dshsync-field-hint' }, t('autoHint')),
+          ),
+          h('div', { className: 'dshsync-field dshsync-interval' },
+            h('label', { className: 'dshsync-label', htmlFor: 'dshsync-interval' }, t('intervalLabel')),
+            h('div', { className: 'dshsync-interval-row' },
+              h('input', {
+                id: 'dshsync-interval',
+                className: 'dshsync-input dshsync-interval-input',
+                type: 'number',
+                min: 1,
+                max: 1440,
+                step: 1,
+                value: intervalText,
+                disabled: busy === 'save',
+                onChange: (event) => {
+                  setIntervalText(event.target.value)
+                  setDirty(true)
+                },
+              }),
+              h('span', { className: 'dshsync-unit' }, t('intervalUnit')),
+            ),
+          ),
           h('div', { className: 'dshsync-actions' },
             h('button', { type: 'button', className: 'dshsync-btn dshsync-btn-primary', onClick: onSave, disabled }, t('save')),
             h('button', { type: 'button', className: 'dshsync-btn', onClick: onTest, disabled }, t('test')),
@@ -406,12 +511,16 @@ window.__ModuleLoader__.load({
             : h('dl', { className: 'dshsync-grid' },
               row('remote', t('remoteStatus'), snapshot.remote || t('notConfigured')),
               row('branch', t('branchStatus'), snapshot.branch),
+              row('auto', t('autoStatus'), autoText),
               row('local', t('localStatus'), `${local.sessions} / ${local.files}`),
               row('mirror', t('mirrorStatus'), mirror.initialized
                 ? `${mirror.sessions} / ${mirror.files}`
                 : t('mirrorMissing')),
               row('push', t('lastPush'), state.lastPushAt
                 ? `${timeText(state.lastPushAt)}${state.lastPushOk === false ? ' ✕' : ''}`
+                : t('never')),
+              row('autoPush', t('lastAutoPush'), state.lastAutoPushAt
+                ? `${timeText(state.lastAutoPushAt)}${state.lastAutoPushOk === false ? ' ✕' : ''}`
                 : t('never')),
               row('pull', t('lastPull'), state.lastPullAt
                 ? `${timeText(state.lastPullAt)}${state.lastPullOk === false ? ' ✕' : ''}`
