@@ -1,8 +1,8 @@
-# `dsh-sync` bundle patch.
+# `@code_tin/dsh-sync` bundle patch.
 #
 # One host row plus the browser half declared by `dsh.client` in package.json.
 # The row id is the plugin's own so a higher-priority profile patch can override
 # this row's `config` (there is none today) without renaming the plugin.
 - insert:
     - id: dsh-sync
-      name: dsh-sync
+      name: '@code_tin/dsh-sync'

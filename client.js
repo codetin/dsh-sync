@@ -7,7 +7,7 @@
  * work stay on the host; this module only renders state and calls endpoints.
  */
 window.__ModuleLoader__.load({
-  id: 'dsh-sync',
+  id: '@code_tin/dsh-sync',
   factory(require) {
     const React = require('react')
     const h = React.createElement

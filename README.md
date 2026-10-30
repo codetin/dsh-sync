@@ -2,6 +2,7 @@
 
 通过 Git 在多个设备之间同步 DeepSeek Harness（DSH）的会话。
 
+- npm：`@code_tin/dsh-sync`；安装：`plugin_manager install_bundle { "target": "@code_tin/dsh-sync@0.1.0" }`
 - 设置页：**设置 → 会话 Git 同步**，填写 Git 仓库地址与分支，查看本地/镜像状态，直接拉取或推送。
 - 命令：`/sync`、`/sync pull`、`/sync push`、`/sync test`。
 - 数据：本机会话仍在 `~/.dsh/sessions`；插件在 `~/.dsh/dsh-sync/repo` 维护一个专用 Git 镜像仓库，不往会话目录里写 `.git`。
@@ -50,35 +51,30 @@ plugin_manager install_bundle { "target": "/path/to/dsh-sync" }
 
 ```bash
 npm pack
-# 生成 dsh-sync-0.1.0.tgz
+# 生成 code_tin-dsh-sync-0.1.0.tgz
 ```
 
 把 tgz 拷到目标机器，在 DSH 里安装：
 
 ```
-plugin_manager install_bundle { "target": "/绝对路径/dsh-sync-0.1.0.tgz" }
+plugin_manager install_bundle { "target": "/绝对路径/code_tin-dsh-sync-0.1.0.tgz" }
 ```
 
 Plugin Manager 支持目录、tarball、git 地址和 npm 包名这几类安装 spec。
 
 ### 发布到 npm
 
-**当前 `dsh-sync` 这个名称在 npm 上已被另一个项目占用（0.1.3），不能直接发布。** 发布前需要：
-
-1. 改名，例如 `dsh-session-git-sync`（目前可用），或使用自己的 npm scope：`@your-name/dsh-sync`。
-2. 同步修改 `client.js` 里的模块 id 和 `cordis.patch.yml` 里的 `name`，然后重新安装本地插件。
-3. 去掉 `package.json` 的 `"private": true`，补充 `license`、`repository`、`publishConfig`。
-4. 登录并发布：
+包名：**`@code_tin/dsh-sync`**（public）。发布：
 
 ```bash
 npm login
-npm publish --access public   # scoped 包需要 --access public
+npm publish --access public
 ```
 
 发布后其他机器直接安装：
 
 ```
-plugin_manager install_bundle { "target": "dsh-session-git-sync@0.1.0" }
+plugin_manager install_bundle { "target": "@code_tin/dsh-sync@0.1.0" }
 ```
 
 注意：发布到 npm 只解决“可安装”，不会自动让插件出现在 DSH 插件市场的 Discover 列表；市场收录通常还需要公开仓库和索引源。

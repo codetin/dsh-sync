@@ -1,7 +1,6 @@
 {
-  "name": "dsh-sync",
+  "name": "@code_tin/dsh-sync",
   "version": "0.1.0",
-  "private": true,
   "description": "Sync DeepSeek Harness sessions across devices through a git repository, with a Settings page and /sync, /sync pull, /sync push commands.",
   "license": "MIT",
   "repository": {
@@ -28,7 +27,8 @@
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "keywords": [
     "dsh",
@@ -55,5 +55,8 @@
   },
   "scripts": {
     "test": "node --test test/*.test.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
