@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session Git Sync",
+    "description": "Mirror DSH sessions into a git repository and share them across devices: /sync status, /sync pull and /sync push, plus a Settings page for the repository URL."
+  }
+}
