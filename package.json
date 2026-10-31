@@ -1,6 +1,6 @@
 {
   "name": "@code_tin/dsh-sync",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Sync DeepSeek Harness sessions across devices through a git repository, with optional timed auto-push, a Settings page, and /sync commands.",
   "license": "MIT",
   "repository": {
@@ -17,7 +17,7 @@
     ".": "./index.js",
     "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg",
+    "./icon": "./icon.png",
     "./package.json": "./package.json"
   },
   "files": [
@@ -26,7 +26,7 @@
     "lib/*.js",
     "cordis.patch.yml",
     "locale/*.json",
-    "icon.svg",
+    "icon.png",
     "README.md",
     "LICENSE"
   ],
