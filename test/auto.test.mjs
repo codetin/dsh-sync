@@ -170,3 +170,43 @@ test('scheduler stays idle while disabled or without a remote', async (t) => {
 
   scheduler.stop()
 })
+
+test('concurrent refresh calls leave a single timer', async (t) => {
+  let release
+  const barrier = new Promise((resolve) => { release = resolve })
+  let reads = 0
+  const settings = {
+    remote: '/tmp/repo',
+    branch: 'main',
+    autoPush: true,
+    autoPushIntervalMinutes: 5,
+  }
+  const sync = {
+    async readSettings() {
+      reads += 1
+      await barrier
+      return settings
+    },
+    async push() {
+      throw new Error('must not push')
+    },
+    async recordAutoPush() {},
+  }
+  const clock = makeClock()
+  const scheduler = new AutoPushScheduler({
+    sync,
+    logger: { warn() {} },
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+  })
+
+  scheduler.start()
+  const refreshing = scheduler.refresh()
+  assert.equal(reads, 2)
+  release()
+  await refreshing
+  await flush()
+
+  assert.deepEqual(clock.pending().map((timer) => timer.ms), [5 * 60_000])
+  scheduler.stop()
+})

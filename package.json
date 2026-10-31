@@ -1,6 +1,6 @@
 {
   "name": "@code_tin/dsh-sync",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Sync DeepSeek Harness sessions across devices through a git repository, with optional timed auto-push, a Settings page, and /sync commands.",
   "license": "MIT",
   "repository": {

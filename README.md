@@ -2,7 +2,7 @@
 
 通过 Git 在多个设备之间同步 DeepSeek Harness（DSH）的会话。
 
-- npm：`@code_tin/dsh-sync`；安装：`plugin_manager install_bundle { "target": "@code_tin/dsh-sync@0.2.0" }`
+- npm：`@code_tin/dsh-sync`；安装：`plugin_manager install_bundle { "target": "@code_tin/dsh-sync@0.2.4" }`
 - 设置页：**设置 → 会话 Git 同步**，填写 Git 仓库地址与分支，查看本地/镜像状态，直接拉取或推送；可勾选**自动同步**并设置间隔（分钟）。
 - 命令：`/sync`、`/sync pull`、`/sync push`、`/sync test`。
 - 数据：本机会话仍在 `~/.dsh/sessions`；插件在 `~/.dsh/dsh-sync/repo` 维护一个专用 Git 镜像仓库，不往会话目录里写 `.git`。
@@ -45,7 +45,9 @@ plugin_manager install_bundle { "target": "/path/to/dsh-sync" }
 - 镜像仓库会保留历史上推送过的会话；本机删除会话不会删除镜像中的副本。
 - 自动同步只做 push，不自动 pull；需要把其他设备的会话取回时仍要手动 pull。
 - 自动同步依赖 DSH 宿主进程持续运行；宿主退出期间不会推送，重启后从新间隔重新计时；系统休眠唤醒后会在计时到期时补触发一次。失败只记录到状态与日志，不会重试。
-- Git 地址保存在 `~/.dsh/dsh-sync/settings.json`（权限 0600）。不要把带 token 的 URL 提交到任何地方。
+- Git 地址保存在 `~/.dsh/dsh-sync/settings.json`（权限 0600），插件目录权限为 0700。不要把带 token 的 URL 提交到任何地方。
+- 设置页通过宿主 RPC 暴露 `save/test/pull/push`，插件自身不做调用方鉴权。请只在可信的本机 DSH Web 界面使用；如果把 DSH Web 暴露到不受信任的网络，其他人可以改写远程地址并推送本机全部会话。
+- `settings.json` 被手工改成非法值（如以 `-` 开头的地址或带空格的 branch）时，读取会忽略该值并回落到默认配置，而不是把它交给 git。
 
 ## 分发给其他设备
 
@@ -55,13 +57,13 @@ plugin_manager install_bundle { "target": "/path/to/dsh-sync" }
 
 ```bash
 npm pack
-# 生成 code_tin-dsh-sync-0.2.0.tgz
+# 生成 code_tin-dsh-sync-0.2.4.tgz
 ```
 
 把 tgz 拷到目标机器，在 DSH 里安装：
 
 ```
-plugin_manager install_bundle { "target": "/绝对路径/code_tin-dsh-sync-0.2.0.tgz" }
+plugin_manager install_bundle { "target": "/绝对路径/code_tin-dsh-sync-0.2.4.tgz" }
 ```
 
 Plugin Manager 支持目录、tarball、git 地址和 npm 包名这几类安装 spec。
@@ -78,7 +80,7 @@ npm publish --access public
 发布后其他机器直接安装：
 
 ```
-plugin_manager install_bundle { "target": "@code_tin/dsh-sync@0.2.0" }
+plugin_manager install_bundle { "target": "@code_tin/dsh-sync@0.2.4" }
 ```
 
 注意：发布到 npm 只解决“可安装”，不会自动让插件出现在 DSH 插件市场的 Discover 列表；市场收录通常还需要公开仓库和索引源。

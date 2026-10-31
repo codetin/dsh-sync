@@ -134,3 +134,56 @@ test('save validates the git URL and branch', async (t) => {
   assert.equal(validateBranch(''), 'main')
   assert.throws(() => validateRemote(''), /URL/i)
 })
+
+test('status and test work before the home directory exists', async (t) => {
+  const root = await makeRoot(t)
+  const remote = await makeBareRemote(root)
+  const home = path.join(root, 'missing-home')
+  const sync = new SessionGitSync({ home, logger: { warn() {} } })
+
+  const status = await sync.status()
+  assert.equal(status.git.available, true)
+  assert.equal(status.local.files, 0)
+
+  const probe = await sync.test(remote)
+  assert.equal(probe.ok, true)
+  assert.deepEqual(probe.branches, [])
+})
+
+test('settings read from disk are revalidated', async (t) => {
+  const root = await makeRoot(t)
+  const home = await makeHome(root, 'device')
+  const sync = new SessionGitSync({ home, logger: { warn() {} } })
+  await fs.mkdir(sync.dataDir, { recursive: true })
+  await fs.writeFile(
+    sync.settingsPath,
+    JSON.stringify({ remote: '--upload-pack=evil', branch: 'bad branch', autoPush: true }),
+  )
+
+  const settings = await sync.readSettings()
+  assert.equal(settings.remote, '')
+  assert.equal(settings.branch, 'main')
+  assert.equal(settings.autoPush, true)
+})
+
+test('save creates the data directory with owner-only permissions', async (t) => {
+  if (process.platform === 'win32') return
+  const root = await makeRoot(t)
+  const home = await makeHome(root, 'device')
+  const sync = new SessionGitSync({ home, logger: { warn() {} } })
+  await sync.save('/tmp/repo', 'main')
+  const mode = (await fs.stat(sync.dataDir)).mode & 0o777
+  assert.equal(mode, 0o700)
+})
+
+test('recordAutoPush merges into the shared state instead of replacing it', async (t) => {
+  const root = await makeRoot(t)
+  const home = await makeHome(root, 'device')
+  const sync = new SessionGitSync({ home, logger: { warn() {} } })
+  await sync.recordState({ lastPushAt: '2026-01-01T00:00:00.000Z', lastPushOk: true })
+  await sync.recordAutoPush({ ok: false })
+  const state = await sync.readState()
+  assert.equal(state.lastPushAt, '2026-01-01T00:00:00.000Z')
+  assert.equal(state.lastPushOk, true)
+  assert.equal(state.lastAutoPushOk, false)
+})
